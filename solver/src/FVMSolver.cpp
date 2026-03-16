@@ -405,6 +405,24 @@ void FVMSolver::computeJacobianDiag(double factor) {
       index++;
     }
   }
+
+  int ibegn = 0;
+  for (int ib = 0; ib < geom.numBoundSegs; ++ib) {
+    auto name = geom.bname[ib];
+    auto type = param.boundaryMap.find(name)->second;
+    int iendn = geom.ibound[ib].bnodeIndex;
+    if (type == preprocess::BoundaryType::Periodic &&
+        geom.periodicMaster.find(name) != geom.periodicMaster.end()) {
+      for (int ibn = ibegn; ibn <= iendn; ++ibn) {
+        int i = geom.vertexList[ibn].nodeIdx;
+        int j = geom.vertexList[ibn].periodicPair;
+
+        diag[i] += diag[j];
+        diag[j] = diag[i];
+      }
+    }
+    ibegn = iendn + 1;
+  }
 }
 
 void FVMSolver::lowerSweep() {
@@ -504,6 +522,41 @@ void FVMSolver::lowerSweep() {
           (-rhsTurb[iPoint].nu_turb - 0.5 * dfSA.nu_turb) /
           (diag[iPoint] - sourceJacobian[iPoint]);
     }
+  }
+
+  int ibegn = 0;
+  for (int ib = 0; ib < geom.numBoundSegs; ++ib) {
+    auto name = geom.bname[ib];
+    auto type = param.boundaryMap.find(name)->second;
+    int iendn = geom.ibound[ib].bnodeIndex;
+    if (type == preprocess::BoundaryType::Periodic &&
+        geom.periodicMaster.find(name) != geom.periodicMaster.end()) {
+      for (int ibn = ibegn; ibn <= iendn; ++ibn) {
+        int i = geom.vertexList[ibn].nodeIdx;
+        int j = geom.vertexList[ibn].periodicPair;
+
+        intermediateSol[i].dens +=
+            (intermediateSol[j].dens + rhs[j].dens / diag[j]);
+        intermediateSol[i].xmom +=
+            (intermediateSol[j].xmom + rhs[j].xmom / diag[j]);
+        intermediateSol[i].ymom +=
+            (intermediateSol[j].ymom + rhs[j].ymom / diag[j]);
+        intermediateSol[i].ener +=
+            (intermediateSol[j].ener + rhs[j].ener / diag[j]);
+        intermediateSol[j].dens = intermediateSol[i].dens;
+        intermediateSol[j].xmom = intermediateSol[i].xmom;
+        intermediateSol[j].ymom = intermediateSol[i].ymom;
+        intermediateSol[j].ener = intermediateSol[i].ener;
+
+        if (param.equationtype_ == preprocess::equationType::RANS) {
+          intermediateSA[i].nu_turb +=
+              (intermediateSA[j].nu_turb +
+               rhsTurb[j].nu_turb / (diag[j] - sourceJacobian[j]));
+          intermediateSA[j].nu_turb = intermediateSA[i].nu_turb;
+        }
+      }
+    }
+    ibegn = iendn + 1;
   }
 }
 
@@ -605,6 +658,41 @@ void FVMSolver::upperSweep() {
           0.5 * dfSA.nu_turb / (diag[iPoint] - sourceJacobian[iPoint]);
     }
   }
+
+  int ibegn = 0;
+  for (int ib = 0; ib < geom.numBoundSegs; ++ib) {
+    auto name = geom.bname[ib];
+    auto type = param.boundaryMap.find(name)->second;
+    int iendn = geom.ibound[ib].bnodeIndex;
+    if (type == preprocess::BoundaryType::Periodic &&
+        geom.periodicMaster.find(name) != geom.periodicMaster.end()) {
+      for (int ibn = ibegn; ibn <= iendn; ++ibn) {
+        int i = geom.vertexList[ibn].nodeIdx;
+        int j = geom.vertexList[ibn].periodicPair;
+
+        increment[i].dens +=
+            (increment[j].dens - intermediateSol[j].dens / diag[j]);
+        increment[i].xmom +=
+            (increment[j].xmom - intermediateSol[j].xmom / diag[j]);
+        increment[i].ymom +=
+            (increment[j].ymom - intermediateSol[j].ymom / diag[j]);
+        increment[i].ener +=
+            (increment[j].ener - intermediateSol[j].ener / diag[j]);
+        increment[j].dens = increment[i].dens;
+        increment[j].xmom = increment[i].xmom;
+        increment[j].ymom = increment[i].ymom;
+        increment[j].ener = increment[i].ener;
+
+        if (param.equationtype_ == preprocess::equationType::RANS) {
+          incrementSA[i].nu_turb +=
+              (incrementSA[j].nu_turb -
+               intermediateSA[j].nu_turb / (diag[j] - sourceJacobian[j]));
+          incrementSA[j].nu_turb = incrementSA[i].nu_turb;
+        }
+      }
+    }
+    ibegn = iendn + 1;
+  }
 }
 
 void FVMSolver::LUSGSupdate() {
@@ -656,4 +744,4 @@ void FVMSolver::computeResidualLUSGS() {
     PeriodicTurb();
   }
 }
-}  // namespace solver
+} // namespace solver

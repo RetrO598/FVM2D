@@ -26,7 +26,7 @@ namespace io {
 void writeVTKFile(const std::string &filename,
                   const preprocess::MeshData<2> &mesh,
                   const solver::FVMSolver &solver);
-}  // namespace io
+} // namespace io
 
 namespace solver {
 
@@ -36,7 +36,7 @@ class FVMSolver {
                                const preprocess::MeshData<2> &,
                                const solver::FVMSolver &);
 
- public:
+public:
   FVMSolver(preprocess::parameter &parameter,
             const preprocess::Geometry &geometry);
 
@@ -120,7 +120,7 @@ class FVMSolver {
 
   int iter;
 
- private:
+private:
   std::vector<CONS_VAR> cv;
   std::vector<CONS_VAR> cvOld;
   std::vector<CONS_VAR> diss;
@@ -171,4 +171,4 @@ class FVMSolver {
   double drho;
   double drho1;
 };
-}  // namespace solver
+} // namespace solver

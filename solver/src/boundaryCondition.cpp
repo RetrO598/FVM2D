@@ -760,5 +760,4 @@ void FVMSolver::PeriodicVisc(std::vector<double> &gradTx,
     ibegn = iendn + 1;
   }
 }
-
-}  // namespace solver
+} // namespace solver
