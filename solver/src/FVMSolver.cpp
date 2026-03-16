@@ -705,7 +705,8 @@ void FVMSolver::LUSGSupdate() {
 
   if (param.equationtype_ == preprocess::equationType::RANS) {
     for (std::size_t i = 0; i < geom.phyNodes; ++i) {
-      turbVar[i].nu_turb += std::max(incrementSA[i].nu_turb, 0.0);
+      turbVar[i].nu_turb =
+          std::max(turbVar[i].nu_turb + incrementSA[i].nu_turb, 0.0);
     }
   }
 }
